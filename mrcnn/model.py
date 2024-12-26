@@ -2295,37 +2295,37 @@ callbacks = [
 
 
 
-        # Add custom callbacks to the list
-        if custom_callbacks:
-            callbacks += custom_callbacks
+if custom_callbacks:
+    callbacks += custom_callbacks
 
-        # Train
-        log("\nStarting at epoch {}. LR={}\n".format(self.epoch, learning_rate))
-        log("Checkpoint Path: {}".format(self.checkpoint_path))
-        self.set_trainable(layers)
-        self.compile(learning_rate, self.config.LEARNING_MOMENTUM)
+# Train
+log("\nStarting at epoch {}. LR={}\n".format(self.epoch, learning_rate))
+log("Checkpoint Path: {}".format(self.checkpoint_path))
+self.set_trainable(layers)
+self.compile(learning_rate, self.config.LEARNING_MOMENTUM)
 
-        # Work-around for Windows: Keras fails on Windows when using
-        # multiprocessing workers. See discussion here:
-        # https://github.com/matterport/Mask_RCNN/issues/13#issuecomment-353124009
-        if os.name is 'nt':
-            workers = 0
-        else:
-            workers = multiprocessing.cpu_count()
+# Work-around for Windows: Keras fails on Windows when using
+# multiprocessing workers. See discussion here:
+# https://github.com/matterport/Mask_RCNN/issues/13#issuecomment-353124009
+if os.name == 'nt':  # Fixed the comparison here (should be '==')
+    workers = 0
+else:
+    workers = multiprocessing.cpu_count()
 
-        self.keras_model.fit(
-            train_generator,
-            initial_epoch=self.epoch,
-            epochs=epochs,
-            steps_per_epoch=self.config.STEPS_PER_EPOCH,
-            callbacks=callbacks,
-            validation_data=val_generator,
-            validation_steps=self.config.VALIDATION_STEPS,
-            max_queue_size=100,
-            workers=workers,
-            use_multiprocessing=True,
-        )
-        self.epoch = max(self.epoch, epochs)
+self.keras_model.fit(
+    train_generator,
+    initial_epoch=self.epoch,
+    epochs=epochs,
+    steps_per_epoch=self.config.STEPS_PER_EPOCH,
+    callbacks=callbacks,
+    validation_data=val_generator,
+    validation_steps=self.config.VALIDATION_STEPS,
+    max_queue_size=100,
+    workers=workers,
+    use_multiprocessing=True,
+)
+self.epoch = max(self.epoch, epochs)
+
 
     def mold_inputs(self, images):
         """Takes a list of images and modifies them to the format expected
