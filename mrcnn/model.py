@@ -2084,39 +2084,39 @@ class MaskRCNN:
         """
 	import h5py
         try:
-        from tensorflow.keras.engine import saving
-    except ImportError:
+            from tensorflow.keras.engine import saving
+        except ImportError:
         # For older versions, use the appropriate module
-        from keras.engine import saving
+            from keras.engine import saving
 
-    if exclude:
-        by_name = True
+        if exclude:
+            by_name = True
 
-    if h5py is None:
-        raise ImportError('`load_weights` requires h5py.')
-    f = h5py.File(filepath, mode='r')
-    if 'layer_names' not in f.attrs and 'model_weights' in f:
-        f = f['model_weights']
+        if h5py is None:
+            raise ImportError('`load_weights` requires h5py.')
+        f = h5py.File(filepath, mode='r')
+        if 'layer_names' not in f.attrs and 'model_weights' in f:
+            f = f['model_weights']
 
     # In multi-GPU training, we wrap the model. Get layers
     # of the inner model because they have the weights.
-    keras_model = self.keras_model
-    layers = keras_model.inner_model.layers if hasattr(keras_model, "inner_model")\
+        keras_model = self.keras_model
+        layers = keras_model.inner_model.layers if hasattr(keras_model, "inner_model")\
         else keras_model.layers
 
     # Exclude some layers
-    if exclude:
-        layers = [layer for layer in layers if layer.name not in exclude]
+        if exclude:
+            layers = [layer for layer in layers if layer.name not in exclude]
 
-    if by_name:
-        saving.load_weights_from_hdf5_group_by_name(f, layers)
-    else:
-        saving.load_weights_from_hdf5_group(f, layers)
-    if hasattr(f, 'close'):
-        f.close()
+        if by_name:
+            saving.load_weights_from_hdf5_group_by_name(f, layers)
+        else:
+            saving.load_weights_from_hdf5_group(f, layers)
+        if hasattr(f, 'close'):
+            f.close()
 
     # Update the log directory
-    self.set_log_dir(filepath)
+        self.set_log_dir(filepath)
 
     def get_imagenet_weights(self):
         """Downloads ImageNet trained weights from Keras.
