@@ -2082,21 +2082,41 @@ class MaskRCNN:
         some layers from loading.
         exclude: list of layer names to exclude
         """
-        if exclude:
-            by_name = True
+	import h5py
+        try:
+        from tensorflow.keras.engine import saving
+    except ImportError:
+        # For older versions, use the appropriate module
+        from keras.engine import saving
 
-        # In multi-GPU training, we wrap the model. Get layers
-        # of the inner model because they have the weights.
-        keras_model = self.keras_model
-        layers = keras_model.inner_model.layers if hasattr(keras_model, "inner_model") else keras_model.layers
+    if exclude:
+        by_name = True
 
-        # Exclude some layers
-        if exclude:
-            layers = [l for l in layers if l.name not in exclude]
+    if h5py is None:
+        raise ImportError('`load_weights` requires h5py.')
+    f = h5py.File(filepath, mode='r')
+    if 'layer_names' not in f.attrs and 'model_weights' in f:
+        f = f['model_weights']
 
-        # Load weights using TensorFlow's API
-        keras_model.load_weights(filepath, by_name=by_name, skip_mismatch=True)
-        self.set_log_dir(filepath)
+    # In multi-GPU training, we wrap the model. Get layers
+    # of the inner model because they have the weights.
+    keras_model = self.keras_model
+    layers = keras_model.inner_model.layers if hasattr(keras_model, "inner_model")\
+        else keras_model.layers
+
+    # Exclude some layers
+    if exclude:
+        layers = [layer for layer in layers if layer.name not in exclude]
+
+    if by_name:
+        saving.load_weights_from_hdf5_group_by_name(f, layers)
+    else:
+        saving.load_weights_from_hdf5_group(f, layers)
+    if hasattr(f, 'close'):
+        f.close()
+
+    # Update the log directory
+    self.set_log_dir(filepath)
 
     def get_imagenet_weights(self):
         """Downloads ImageNet trained weights from Keras.
@@ -2277,53 +2297,43 @@ class MaskRCNN:
             os.makedirs(self.log_dir)
 
         # Callbacks
-       # Callbacks
-        # Define the default callbacks
-callbacks = [
-    tf.keras.callbacks.TensorBoard(
-        log_dir=self.log_dir,
-        histogram_freq=0,
-        write_graph=True,
-        write_images=False
-    ),
-    tf.keras.callbacks.ModelCheckpoint(
-        self.checkpoint_path,
-        verbose=0,
-        save_weights_only=True
-    ),
-]
+        callbacks = [
+            tf.keras.callbacks.TensorBoard(log_dir=self.log_dir,
+                                        histogram_freq=0, write_graph=True, write_images=False),
+            tf.keras.callbacks.ModelCheckpoint(self.checkpoint_path,
+                                            verbose=0, save_weights_only=True),
+        ]
 
-# Add custom callbacks if any
-if custom_callbacks:
-    callbacks += custom_callbacks
+        # Add custom callbacks to the list
+        if custom_callbacks:
+            callbacks += custom_callbacks
 # Train
-log("\nStarting at epoch {}. LR={}\n".format(self.epoch, learning_rate))
-log("Checkpoint Path: {}".format(self.checkpoint_path))
-self.set_trainable(layers)
-self.compile(learning_rate, self.config.LEARNING_MOMENTUM)
+        log("\nStarting at epoch {}. LR={}\n".format(self.epoch, learning_rate))
+        log("Checkpoint Path: {}".format(self.checkpoint_path))
+        self.set_trainable(layers)
+        self.compile(learning_rate, self.config.LEARNING_MOMENTUM)
 
-# Work-around for Windows: Keras fails on Windows when using
-# multiprocessing workers. See discussion here:
-# https://github.com/matterport/Mask_RCNN/issues/13#issuecomment-353124009
-if os.name == 'nt':  # Fixed the comparison here (should be '==')
-    workers = 0
-else:
-    workers = multiprocessing.cpu_count()
+        # Work-around for Windows: Keras fails on Windows when using
+        # multiprocessing workers. See discussion here:
+        # https://github.com/matterport/Mask_RCNN/issues/13#issuecomment-353124009
+        if os.name is 'nt':
+            workers = 0
+        else:
+            workers = multiprocessing.cpu_count()
 
-self.keras_model.fit(
-    train_generator,
-    initial_epoch=self.epoch,
-    epochs=epochs,
-    steps_per_epoch=self.config.STEPS_PER_EPOCH,
-    callbacks=callbacks,
-    validation_data=val_generator,
-    validation_steps=self.config.VALIDATION_STEPS,
-    max_queue_size=100,
-    workers=workers,
-    use_multiprocessing=True,
-)
-self.epoch = max(self.epoch, epochs)
-
+        self.keras_model.fit(
+            train_generator,
+            initial_epoch=self.epoch,
+            epochs=epochs,
+            steps_per_epoch=self.config.STEPS_PER_EPOCH,
+            callbacks=callbacks,
+            validation_data=val_generator,
+            validation_steps=self.config.VALIDATION_STEPS,
+            max_queue_size=100,
+            workers=workers,
+            use_multiprocessing=True,
+        )
+        self.epoch = max(self.epoch, epochs)
 
     def mold_inputs(self, images):
         """Takes a list of images and modifies them to the format expected
