@@ -2850,35 +2850,52 @@ def batch_pack_graph(x, counts, num_rows):
     return tf.concat(outputs, axis=0)
 
 
+import tensorflow as tf
+
 def norm_boxes_graph(boxes, shape):
-    """Converts boxes from pixel coordinates to normalized coordinates.
-    boxes: [..., (y1, x1, y2, x2)] in pixel coordinates
-    shape: [..., (height, width)] in pixels
-
-    Note: In pixel coordinates (y2, x2) is outside the box. But in normalized
-    coordinates it's inside the box.
-
+    """
+    Converts boxes from pixel coordinates to normalized coordinates.
+    
+    Args:
+        boxes: [..., (y1, x1, y2, x2)] in pixel coordinates
+        shape: [..., (height, width)] in pixels
+    
     Returns:
         [..., (y1, x1, y2, x2)] in normalized coordinates
     """
+    boxes = tf.convert_to_tensor(boxes)  # Convert to tensor for compatibility
+    shape = tf.convert_to_tensor(shape)  # Convert shape to tensor for compatibility
+
+    # Extract height and width
     h, w = tf.split(tf.cast(shape, tf.float32), 2)
-    scale = tf.concat([h, w, h, w], axis=-1) - tf.constant(1.0)
-    shift = tf.constant([0., 0., 1., 1.])
-    return tf.divide(boxes - shift, scale)
+    scale = tf.concat([h, w, h, w], axis=0)
+    shift = tf.constant([0., 0., 1., 1.], dtype=tf.float32)  # Ensure float32 for TensorFlow operations
 
-
+    return (boxes - shift) / scale
 def denorm_boxes_graph(boxes, shape):
-    """Converts boxes from normalized coordinates to pixel coordinates.
-    boxes: [..., (y1, x1, y2, x2)] in normalized coordinates
-    shape: [..., (height, width)] in pixels
+    """
+    Converts boxes from normalized coordinates to pixel coordinates.
 
-    Note: In pixel coordinates (y2, x2) is outside the box. But in normalized
-    coordinates it's inside the box.
-
+    Args:
+        boxes: [..., (y1, x1, y2, x2)] in normalized coordinates
+        shape: [..., (height, width)] in pixels
+    
     Returns:
         [..., (y1, x1, y2, x2)] in pixel coordinates
+    
+    Notes:
+    - In pixel coordinates, (y2, x2) is outside the box.
+    - In normalized coordinates, (y2, x2) is inside the box.
     """
+    boxes = tf.convert_to_tensor(boxes)  # Convert to tensor for compatibility
+    shape = tf.convert_to_tensor(shape)  # Convert shape to tensor for compatibility
+
+    # Extract height and width
     h, w = tf.split(tf.cast(shape, tf.float32), 2)
-    scale = tf.concat([h, w, h, w], axis=-1) - tf.constant(1.0)
-    shift = tf.constant([0., 0., 1., 1.])
-    return tf.cast(tf.round(tf.multiply(boxes, scale) + shift), tf.int32)
+    scale = tf.concat([h, w, h, w], axis=0) - tf.constant(1.0, dtype=tf.float32)
+    shift = tf.constant([0., 0., 1., 1.], dtype=tf.float32)
+
+    # Denormalize boxes
+    denorm_boxes = tf.round(boxes * scale + shift)
+
+    return tf.cast(denorm_boxes, tf.int32)
