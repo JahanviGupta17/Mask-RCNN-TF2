@@ -2278,6 +2278,7 @@ class MaskRCNN:
 
         # Callbacks
        # Callbacks
+        # Define the default callbacks
 callbacks = [
     tf.keras.callbacks.TensorBoard(
         log_dir=self.log_dir,
@@ -2292,12 +2293,9 @@ callbacks = [
     ),
 ]
 
-
-
-
+# Add custom callbacks if any
 if custom_callbacks:
     callbacks += custom_callbacks
-
 # Train
 log("\nStarting at epoch {}. LR={}\n".format(self.epoch, learning_rate))
 log("Checkpoint Path: {}".format(self.checkpoint_path))
