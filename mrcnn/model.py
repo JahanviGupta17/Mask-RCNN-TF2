@@ -17,12 +17,11 @@ from collections import OrderedDict
 import multiprocessing
 import numpy as np
 import tensorflow as tf
-import keras
-import keras.backend as K
-import keras.layers as KL
-import keras.engine as KE
-import keras.models as KM
-
+import tensorflow.keras as keras
+import tensorflow.keras.backend as K
+import tensorflow.keras.layers as KL
+import tensorflow.keras.models as KM
+import tensorflow.keras.engine as KE  # KE is part of the TensorFlow Keras API
 from mrcnn import utils
 
 # Requires TensorFlow 1.3+ and Keras 2.0.8+.
